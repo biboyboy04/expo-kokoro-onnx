@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import { VOICES, getVoiceData } from './voices';
 import { Platform } from 'react-native';
 import { MODELS } from './models';
+import { generatePhonemes, isNativePhonemizerAvailable } from '@allysonai/phonemizer-native';
 
 // Constants
 const SAMPLE_RATE = 24000;
@@ -316,7 +317,26 @@ class KokoroOnnx {
    * @param {string} text The input text
    * @returns {string} Phonemized text
    */
-  phonemize(text) {
+  async phonemize(text) {
+    if (isNativePhonemizerAvailable()) {
+      try {
+        const nativePhonemes = await generatePhonemes(text, {
+          languageCode: 'en-us',
+          normalizeText: true,
+        });
+        const joined = nativePhonemes.join(' ').trim();
+        if (joined.length > 0) {
+          return joined;
+        }
+      } catch (error) {
+        console.warn('Falling back to JS phonemizer:', error);
+      }
+    }
+
+    return this._fallbackPhonemize(text);
+  }
+
+  _fallbackPhonemize(text) {
     // Normalize the text first
     text = this.normalizeText(text);
     
@@ -378,19 +398,47 @@ class KokoroOnnx {
     return phonemizedWords.join(' ');
   }
 
+  async comparePhonemizers(text) {
+    const fallback = this._fallbackPhonemize(text);
+    if (!isNativePhonemizerAvailable()) {
+      return { fallback, native: null, nativeAvailable: false };
+    }
+
+    try {
+      const nativePhonemes = await generatePhonemes(text, {
+        languageCode: 'en-us',
+        normalizeText: true,
+      });
+      return {
+        fallback,
+        native: nativePhonemes.join(' '),
+        nativeAvailable: true,
+      };
+    } catch (error) {
+      console.warn('comparePhonemizers failed to use native module:', error);
+      return {
+        fallback,
+        native: null,
+        nativeAvailable: true,
+        error,
+      };
+    }
+  }
+
   /**
    * Tokenize phonemized text
    * @param {string} phonemes The phonemized text
    * @returns {number[]} Tokenized input
    */
-  tokenize(phonemes) {
+  async tokenize(phonemes) {
+    let resolvedPhonemes = phonemes;
     // If input is regular text, phonemize it first
-    if (!/[ɑɐɒæəɘɚɛɜɝɞɨɪʊʌɔˈˌː]/.test(phonemes)) {
-      phonemes = this.phonemize(phonemes);
+    if (!/[ɑɐɒæəɘɚɛɜɝɞɨɪʊʌɔoeiuaɑːˈˌ]/.test(resolvedPhonemes)) {
+      resolvedPhonemes = await this.phonemize(resolvedPhonemes);
     }
     
-    console.log('Phonemized text:', phonemes);
-    this.streamingPhonemes = phonemes;
+    console.log('Phonemized text:', resolvedPhonemes);
+    this.streamingPhonemes = resolvedPhonemes;
     
     const tokens = [];
     
@@ -398,7 +446,7 @@ class KokoroOnnx {
     tokens.push(0);
     
     // Convert each character to a token if it exists in VOCAB
-    for (const char of phonemes) {
+    for (const char of resolvedPhonemes) {
       if (VOCAB[char] !== undefined) {
         tokens.push(VOCAB[char]);
       } else {
@@ -433,7 +481,7 @@ class KokoroOnnx {
       await this.downloadVoice(voiceId);
       
       // 1. Tokenize the input text
-      const tokens = this.tokenize(text);
+      const tokens = await this.tokenize(text);
       const numTokens = Math.min(Math.max(tokens.length - 2, 0), 509);
       
       // 2. Get voice style data
@@ -523,7 +571,7 @@ class KokoroOnnx {
       await this.downloadVoice(voiceId);
       
       // 1. Tokenize the input text
-      const tokens = this.tokenize(text);
+      const tokens = await this.tokenize(text);
       this.streamingTokens = tokens;
       const numTokens = Math.min(Math.max(tokens.length - 2, 0), 509);
       this.tokensProcessed = numTokens;

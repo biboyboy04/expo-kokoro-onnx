@@ -124,6 +124,13 @@ The app includes multiple voices with different characteristics:
 - **Voice Management**: Functions for downloading and using voice data
 - **UI Components**: React Native components for the user interface
 
+### Native Phonemizer Module
+
+- The Expo native module `@allysonai/phonemizer-native` wraps a Kotlin `PhonemeConverter` and the CMU IPA dictionary for fast phonemization.
+- When the native module is available, `kokoroOnnx.phonemize` uses it automatically; otherwise the original JavaScript phonemizer is used as a fallback.
+- Developers can call `await kokoroOnnx.comparePhonemizers('your text here')` from app code to inspect native versus fallback results while iterating.
+- After updating Kotlin phoneme logic or the dictionary, rebuild the development client (`npm run android` / `npm run ios`) so the refreshed native module is bundled.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

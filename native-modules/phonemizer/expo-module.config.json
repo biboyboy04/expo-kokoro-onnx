@@ -1,0 +1,6 @@
+{
+  "name": "phonemizer",
+  "android": {
+    "modules": ["com.allysonai.ttsdemo.phonemizer.PhonemizerModule"]
+  }
+}

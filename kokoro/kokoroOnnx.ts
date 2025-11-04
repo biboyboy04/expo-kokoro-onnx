@@ -248,13 +248,6 @@ class KokoroOnnx {
     }
   }
 
-
-
-
-
-
-
-
   getPhonemizerLanguageForVoice(voiceId: string): PhonemizerLanguage {
     const voice = VOICES?.[voiceId];
     const language = typeof voice?.language === 'string' ? voice.language.toLowerCase() : '';
@@ -265,7 +258,7 @@ class KokoroOnnx {
   }
 
   /**
-   * Convert input text into model tokens using the reference phonemizer.
+   * Convert input text into model tokens using the Kokoro phonemizer.
    * @param {string} text The input text
    * @param {string} voiceId The selected voice identifier
    * @returns {Promise<{tokens: number[]; phonemes: string; language: PhonemizerLanguage}>}
@@ -278,13 +271,13 @@ class KokoroOnnx {
     const rawPhonemes = (await phonemizeText(text, language)).trim();
     const normalizedPhonemes = rawPhonemes.replace(/\s+/g, ' ').trim();
 
-    const tokens = [0];
-    const unresolvedChars = new Set();
+    const tokens: number[] = [0];
+    const unresolvedChars = new Set<string>();
     const maxTokens = MAX_PHONEME_LENGTH;
     let tokenCount = 0;
     let truncated = false;
 
-    const pushToken = (token) => {
+    const pushToken = (token: number): boolean => {
       if (tokenCount >= maxTokens) {
         truncated = true;
         return false;
@@ -672,3 +665,4 @@ const kokoroInstance = new KokoroOnnx();
 
 // Export the singleton instance
 export default kokoroInstance; 
+

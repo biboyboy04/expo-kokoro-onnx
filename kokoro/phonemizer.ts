@@ -123,12 +123,16 @@ function pointNumber(match: string): string {
   return `${head} point ${tail.split('').join(' ')}`;
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const PUNCTUATION = `;:,.!?—-."“”(){}[]`;
-const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapeRegExp(PUNCTUATION)}]+\\s*)+`, 'g');
+const PUNCTUATION = ';:,.!?¡¿—…"«»""-'; // include '-' if needed
+// Escape and move '-' to the end to avoid range issue
+const escapedPunctuation = escapeRegExp(PUNCTUATION).replace(/\\-/g, '-');
+
+const PUNCTUATION_PATTERN = new RegExp(`(\\s*[${escapedPunctuation}]+\\s*)+`, 'g');
+
 
 function normalizeInput(text: string): string {
   return text

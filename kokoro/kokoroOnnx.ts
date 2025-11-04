@@ -383,34 +383,44 @@ class KokoroOnnx {
    * @param {string} phonemes The phonemized text
    * @returns {number[]} Tokenized input
    */
-  tokenize(phonemes) {
-    // If input is regular text, phonemize it first
-    if (!/[ɑɐɒæəɘɚɛɜɝɞɨɪʊʌɔˈˌː]/.test(phonemes)) {
-      phonemes = this.phonemize(phonemes);
-    }
-    
-    console.log('Phonemized text:', phonemes);
-    this.streamingPhonemes = phonemes;
-    
-    const tokens = [];
-    
-    // Add start token (0)
-    tokens.push(0);
-    
-    // Convert each character to a token if it exists in VOCAB
-    for (const char of phonemes) {
-      if (VOCAB[char] !== undefined) {
-        tokens.push(VOCAB[char]);
-      } else {
-        console.warn(`Character not in vocabulary: "${char}" (code: ${char.charCodeAt(0)})`);
+tokenize() {
+  // Hardcoded phonemes
+  const hardcodedPhonemes = `k@k'o@roU t,i:t,i:;'Es j'u:sI2z a# nj'u:r@L t'Ekstt@sp'i:tS m'0d@L k@nv'3:tI2d tU '0NNks f
+'O@mat_:_: w,ItS a#l'aUz It t@ r'Vn If'IS@ntli; ,0n m'oUbaIl dI2v'aIsI2z j'u:zIN '0NNks r'
+VntaIm
+DI2; 'ap f'0loUz Di:z st'Eps t@ dZ'En3r,eIt sp'i:tS`;
+
+  console.log("Hardcoded phonemes:", hardcodedPhonemes);
+
+  // Split by whitespace (each phoneme is a "word")
+  const phonemeList = hardcodedPhonemes.trim().split(/\s+/);
+
+  const tokens = [];
+
+  // Add start token
+  tokens.push(0);
+
+  for (const phoneme of phonemeList) {
+    if (VOCAB[phoneme] !== undefined) {
+      tokens.push(VOCAB[phoneme]);
+    } else {
+      // If the phoneme is multi-character, split into characters
+      for (const char of phoneme) {
+        if (VOCAB[char] !== undefined) {
+          tokens.push(VOCAB[char]);
+        } else {
+          console.warn(`Character not in VOCAB: "${char}"`);
+        }
       }
     }
-    
-    // Add end token (0)
-    tokens.push(0);
-    
-    return tokens;
   }
+
+  // Add end token
+  tokens.push(0);
+
+  return tokens;
+}
+
 
   /**
    * Generate audio from text

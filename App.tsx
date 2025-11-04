@@ -248,9 +248,12 @@ export default function App() {
       setTimeToFirstToken(0);
       setStreamingPhonemes("");
       
+       // 🧠 👇 Hard-code your phonemes here
+      const hardcodedPhonemes = "h ə l oʊ w ɜː l d"; // Example for "hello world"
+
       // Generate and stream audio
       const result = await KokoroOnnx.streamAudio(
-        text,
+        hardcodedPhonemes,
         selectedVoice,
         speed,
         (status) => {

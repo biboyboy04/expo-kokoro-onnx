@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import { VOICES, getVoiceData } from './voices';
 import { Platform } from 'react-native';
 import { MODELS } from './models';
+import { phonemizeText, PhonemizerLanguage } from './phonemizer';
 
 // Constants
 const SAMPLE_RATE = 24000;
@@ -29,49 +30,6 @@ const VOCAB = (() => {
   
   return dicts;
 })();
-
-// Common English phoneme mappings for basic phonemization
-const ENGLISH_PHONEME_MAP = {
-  'a': 'ə',
-  'e': 'ɛ',
-  'i': 'ɪ',
-  'o': 'oʊ',
-  'u': 'ʌ',
-  'th': 'θ',
-  'sh': 'ʃ',
-  'ch': 'tʃ',
-  'ng': 'ŋ',
-  'j': 'dʒ',
-  'r': 'ɹ',
-  'er': 'ɝ',
-  'ar': 'ɑɹ',
-  'or': 'ɔɹ',
-  'ir': 'ɪɹ',
-  'ur': 'ʊɹ',
-};
-
-// Common word to phoneme mappings
-const COMMON_WORD_PHONEMES = {
-  'hello': 'hɛˈloʊ',
-  'world': 'wˈɝld',
-  'this': 'ðˈɪs',
-  'is': 'ˈɪz',
-  'a': 'ə',
-  'test': 'tˈɛst',
-  'of': 'ʌv',
-  'the': 'ðə',
-  'kokoro': 'kˈoʊkəɹoʊ',
-  'text': 'tˈɛkst',
-  'to': 'tˈuː',
-  'speech': 'spˈiːtʃ',
-  'system': 'sˈɪstəm',
-  'running': 'ɹˈʌnɪŋ',
-  'on': 'ˈɑːn',
-  'expo': 'ˈɛkspoʊ',
-  'with': 'wˈɪð',
-  'onnx': 'ˈɑːnɛks',
-  'runtime': 'ɹˈʌntaɪm',
-};
 
 class KokoroOnnx {
   constructor() {
@@ -290,137 +248,99 @@ class KokoroOnnx {
     }
   }
 
-  /**
-   * Normalize text for phonemization
-   * @param {string} text The input text
-   * @returns {string} Normalized text
-   */
-  normalizeText(text) {
-    // Remove leading/trailing whitespace
-    text = text.trim();
-    
-    // Replace multiple spaces with a single space
-    text = text.replace(/\s+/g, ' ');
-    
-    // Replace curly quotes with straight quotes
-    text = text.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
-    
-    // Replace other special characters
-    text = text.replace(/…/g, '...');
-    
-    return text;
+
+
+
+
+
+
+
+  getPhonemizerLanguageForVoice(voiceId: string): PhonemizerLanguage {
+    const voice = VOICES?.[voiceId];
+    const language = typeof voice?.language === 'string' ? voice.language.toLowerCase() : '';
+    if (language.startsWith('en-gb')) {
+      return 'b';
+    }
+    return 'a';
   }
 
   /**
-   * Basic phonemization function
+   * Convert input text into model tokens using the reference phonemizer.
    * @param {string} text The input text
-   * @returns {string} Phonemized text
+   * @param {string} voiceId The selected voice identifier
+   * @returns {Promise<{tokens: number[]; phonemes: string; language: PhonemizerLanguage}>}
    */
-  phonemize(text) {
-    // Normalize the text first
-    text = this.normalizeText(text);
-    
-    // Split text into words
-    const words = text.split(/\s+/);
-    
-    // Phonemize each word
-    const phonemizedWords = words.map(word => {
-      // Check if we have a pre-defined phoneme for this word
-      const lowerWord = word.toLowerCase().replace(/[.,!?;:'"]/g, '');
-      if (COMMON_WORD_PHONEMES[lowerWord]) {
-        return COMMON_WORD_PHONEMES[lowerWord];
+  async phonemizeToTokens(
+    text: string,
+    voiceId: string
+  ): Promise<{ tokens: number[]; phonemes: string; language: PhonemizerLanguage }> {
+    const language = this.getPhonemizerLanguageForVoice(voiceId);
+    const rawPhonemes = (await phonemizeText(text, language)).trim();
+    const normalizedPhonemes = rawPhonemes.replace(/\s+/g, ' ').trim();
+
+    const tokens = [0];
+    const unresolvedChars = new Set();
+    const maxTokens = MAX_PHONEME_LENGTH;
+    let tokenCount = 0;
+    let truncated = false;
+
+    const pushToken = (token) => {
+      if (tokenCount >= maxTokens) {
+        truncated = true;
+        return false;
       }
-      
-      // Otherwise, do a simple character-by-character phonemization
-      let phonemes = '';
-      let i = 0;
-      
-      while (i < word.length) {
-        // Check for digraphs (two-letter phonemes)
-        if (i < word.length - 1) {
-          const digraph = word.substring(i, i + 2).toLowerCase();
-          if (ENGLISH_PHONEME_MAP[digraph]) {
-            phonemes += ENGLISH_PHONEME_MAP[digraph];
-            i += 2;
-            continue;
+      tokens.push(token);
+      tokenCount += 1;
+      return true;
+    };
+
+    if (normalizedPhonemes.length > 0) {
+      for (const unit of normalizedPhonemes.split(' ')) {
+        if (!unit) {
+          continue;
+        }
+
+        const vocabId = VOCAB[unit];
+        if (vocabId !== undefined) {
+          if (!pushToken(vocabId)) {
+            break;
+          }
+          continue;
+        }
+
+        for (const char of unit) {
+          const charId = VOCAB[char];
+          if (charId !== undefined) {
+            if (!pushToken(charId)) {
+              break;
+            }
+          } else {
+            unresolvedChars.add(char);
           }
         }
-        
-        // Check for single character phonemes
-        const char = word[i].toLowerCase();
-        if (ENGLISH_PHONEME_MAP[char]) {
-          phonemes += ENGLISH_PHONEME_MAP[char];
-        } else if (/[a-z]/.test(char)) {
-          // For other alphabetic characters, just use the character itself
-          phonemes += char;
-        } else if (/[.,!?;:'"]/g.test(char)) {
-          // For punctuation, keep it as is
-          phonemes += char;
-        }
-        
-        i++;
-      }
-      
-      // Add stress marker to the first syllable if the word is long enough
-      if (phonemes.length > 2 && !/[.,!?;:'"]/g.test(phonemes)) {
-        // Find the first vowel
-        const firstVowelMatch = phonemes.match(/[ɑɐɒæəɘɚɛɜɝɞɨɪʊʌɔoeiuaɑː]/);
-        if (firstVowelMatch) {
-          const vowelIndex = firstVowelMatch.index;
-          phonemes = phonemes.substring(0, vowelIndex) + 'ˈ' + phonemes.substring(vowelIndex);
-        }
-      }
-      
-      return phonemes;
-    });
-    
-    // Join the phonemized words with spaces
-    return phonemizedWords.join(' ');
-  }
 
-  /**
-   * Tokenize phonemized text
-   * @param {string} phonemes The phonemized text
-   * @returns {number[]} Tokenized input
-   */
-tokenize() {
-  // Hardcoded phonemes
-  const hardcodedPhonemes = `k@k'o@roU t,i:t,i:;'Es j'u:sI2z a# nj'u:r@L t'Ekstt@sp'i:tS m'0d@L k@nv'3:tI2d tU '0NNks f
-'O@mat_:_: w,ItS a#l'aUz It t@ r'Vn If'IS@ntli; ,0n m'oUbaIl dI2v'aIsI2z j'u:zIN '0NNks r'
-VntaIm
-DI2; 'ap f'0loUz Di:z st'Eps t@ dZ'En3r,eIt sp'i:tS`;
-
-  console.log("Hardcoded phonemes:", hardcodedPhonemes);
-
-  // Split by whitespace (each phoneme is a "word")
-  const phonemeList = hardcodedPhonemes.trim().split(/\s+/);
-
-  const tokens = [];
-
-  // Add start token
-  tokens.push(0);
-
-  for (const phoneme of phonemeList) {
-    if (VOCAB[phoneme] !== undefined) {
-      tokens.push(VOCAB[phoneme]);
-    } else {
-      // If the phoneme is multi-character, split into characters
-      for (const char of phoneme) {
-        if (VOCAB[char] !== undefined) {
-          tokens.push(VOCAB[char]);
-        } else {
-          console.warn(`Character not in VOCAB: "${char}"`);
+        if (truncated) {
+          break;
         }
       }
     }
+
+    tokens.push(0);
+
+    if (truncated) {
+      console.warn('Phoneme sequence exceeded MAX_PHONEME_LENGTH and was truncated.');
+    }
+
+    if (unresolvedChars.size > 0) {
+      console.warn('Characters not found in VOCAB during phonemization:', Array.from(unresolvedChars));
+    }
+
+    return {
+      tokens,
+      phonemes: normalizedPhonemes,
+      language,
+    };
   }
-
-  // Add end token
-  tokens.push(0);
-
-  return tokens;
-}
-
 
   /**
    * Generate audio from text
@@ -442,8 +362,8 @@ DI2; 'ap f'0loUz Di:z st'Eps t@ dZ'En3r,eIt sp'i:tS`;
       // Ensure voice is downloaded
       await this.downloadVoice(voiceId);
       
-      // 1. Tokenize the input text
-      const tokens = this.tokenize(text);
+      // 1. Phonemize and tokenize the input text
+      const { tokens } = await this.phonemizeToTokens(text, voiceId);
       const numTokens = Math.min(Math.max(tokens.length - 2, 0), 509);
       
       // 2. Get voice style data
@@ -532,9 +452,10 @@ DI2; 'ap f'0loUz Di:z st'Eps t@ dZ'En3r,eIt sp'i:tS`;
       // Ensure voice is downloaded
       await this.downloadVoice(voiceId);
       
-      // 1. Tokenize the input text
-      const tokens = this.tokenize(text);
+      // 1. Phonemize and tokenize the input text
+      const { tokens, phonemes } = await this.phonemizeToTokens(text, voiceId);
       this.streamingTokens = tokens;
+      this.streamingPhonemes = phonemes;
       const numTokens = Math.min(Math.max(tokens.length - 2, 0), 509);
       this.tokensProcessed = numTokens;
       

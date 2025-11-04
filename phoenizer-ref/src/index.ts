@@ -1,0 +1,1 @@
+export { DeepPhonemizer } from "./deep-phonemizer";

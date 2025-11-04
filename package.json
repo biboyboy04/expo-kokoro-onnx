@@ -13,10 +13,12 @@
     "expo-asset": "~11.0.4",
     "expo-av": "~15.0.2",
     "expo-build-properties": "~0.13.2",
+    "expo-deep-phonemizer": "^1.0.4",
     "expo-dev-client": "~5.0.14",
     "expo-file-system": "~18.0.11",
     "expo-status-bar": "~2.0.1",
     "onnxruntime-react-native": "^1.21.0",
+    "phonemize": "^1.1.0",
     "phonemizer": "^1.2.1",
     "react": "18.3.1",
     "react-native": "0.76.7"

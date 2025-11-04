@@ -1,0 +1,8 @@
+{
+  "android": {
+    "package": "com.danemadsen.expo-deep-phonemizer"
+  },
+  "ios": {
+    "bundleIdentifier": "com.danemadsen.expo-deep-phonemizer"
+  }
+}

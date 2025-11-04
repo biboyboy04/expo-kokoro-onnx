@@ -6,6 +6,7 @@ import { Audio } from 'expo-av';
 import { VOICES } from './kokoro/voices';
 import KokoroOnnx from './kokoro/kokoroOnnx';
 import { MODELS, downloadModel, isModelDownloaded, getDownloadedModels, deleteModel } from './kokoro/models';
+import { DeepPhonemizer } from 'expo-deep-phonemizer';
 
 // Default model
 const DEFAULT_MODEL_ID = 'model_q8f16.onnx';
@@ -247,10 +248,17 @@ export default function App() {
       setTokensPerSecond(0);
       setTimeToFirstToken(0);
       setStreamingPhonemes("");
+
+      const phonemizer = await DeepPhonemizer.load_from_path("./assets/deep-phonemizer.onnx");
+
+      const text2 = "Hello world! Do you not think this is a great demo of the Deep Phonemizer running in Expo?";
+      const phonemes = await phonemizer.phonemize(text2, "en_us");  // specify language
+      console.log("Phonemes:", phonemes);
+
       
       // Generate and stream audio
       const result = await KokoroOnnx.streamAudio(
-        text,
+        phonemes,
         selectedVoice,
         speed,
         (status) => {

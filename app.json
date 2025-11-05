@@ -33,8 +33,14 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET"
-      ]
+      ],
+      "package": "com.allysonai.ttsdemo"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -51,7 +57,7 @@
         {
           "filePermission": "This app needs access to files on your device."
         }
-      ]  
+      ]
     ],
     "newArchEnabled": true,
     "extra": {

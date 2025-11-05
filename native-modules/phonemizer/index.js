@@ -1,21 +1,30 @@
-const { NativeModulesProxy } = require('expo-modules-core');
+const { requireNativeModule } = require('expo-modules-core');
 
-const NativePhonemizer = NativeModulesProxy?.Phonemizer;
+let cachedModule;
 
-function assertAvailable() {
-  if (!NativePhonemizer || typeof NativePhonemizer.generatePhonemes !== 'function') {
-    throw new Error('Phonemizer native module is not available on this platform.');
+function resolveNativeModule() {
+  if (cachedModule !== undefined) {
+    return cachedModule;
   }
 
-  return NativePhonemizer;
+  try {
+    cachedModule = requireNativeModule('Phonemizer');
+  } catch (error) {
+    cachedModule = null;
+  }
+
+  return cachedModule;
 }
 
 function isNativePhonemizerAvailable() {
-  return Boolean(NativePhonemizer && typeof NativePhonemizer.generatePhonemes === 'function');
+  return Boolean(resolveNativeModule());
 }
 
 async function generatePhonemes(text, options = {}) {
-  const module = assertAvailable();
+  const module = resolveNativeModule();
+  if (!module || typeof module.generatePhonemes !== 'function') {
+    return [];
+  }
   return module.generatePhonemes(text, options);
 }
 
